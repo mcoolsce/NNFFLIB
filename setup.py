@@ -7,6 +7,6 @@ setup(
     author='Maarten Cools-Ceuppens',
     packages=['nnff'],
     include_package_data=True,
-    package_data = {'nnff/cell_list_op.so': ['nnff/cell_list_op.so']}
+    package_data = {'': ['*.so']}
     )
 
