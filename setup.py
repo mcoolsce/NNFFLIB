@@ -6,6 +6,7 @@ setup(
     description='A Neural Network Force Field package',
     author='Maarten Cools-Ceuppens',
     packages=['nnff'],
-    include_package_data=True
+    include_package_data=True,
+    package_data = {'nnff/cell_list_op.so': ['nnff/cell_list_op.so']}
     )
 
