@@ -8,9 +8,11 @@ def _bytes_feature(value):
 
 cell_list_op = tf.load_op_library(os.path.dirname(__file__) + '/cell_list_op.so')
 
+
 class DataSet(object):
     def __init__(self, tfr_files, num_configs, cutoff = 5., batch_size = 16, test = False, num_shuffle = -1, float_type = 32, 
-                 num_parallel_calls = 8, strategy = None, list_of_properties = ['positions', 'numbers', 'energy', 'rvec', 'forces']):
+                 num_parallel_calls = 8, strategy = None, list_of_properties = ['positions', 'numbers', 'energy', 'rvec', 'forces'],
+                 additional_property_definitions = {}):
         self.cutoff = cutoff
         self.num_configs = num_configs
         self.list_of_properties = list_of_properties
@@ -27,7 +29,25 @@ class DataSet(object):
         elif float_type == 64:
             self.float_type = tf.float64
             self.zero = np.float64(0.)
-
+            
+        # For every property, the tuple (shape, pad_index, dtype) is defined.
+        self.property_definitions = {'energy': ([1], self.zero, self.float_type),
+                                     'positions': ([None, 3], self.zero, self.float_type),
+                                     'numbers': ([None], -1, tf.int32),
+                                     'pairs': ([None, None, 4], -1, tf.int32),
+                                     'rvec': ([3, 3], self.zero, self.float_type),
+                                     'vtens' : ([3, 3], self.zero, self.float_type),
+                                     'forces' : ([None, 3], self.zero, self.float_type)}
+        self.property_definitions.update(additional_property_definitions)
+        
+        padding_shapes = {'pairs': [None, None, 4]}
+        padding_values = {'pairs': -1}
+        for key in self.list_of_properties:
+            if not key in self.property_definitions.keys():
+                raise RuntimeError('The property definition of the key "%s" is not known. Use the additional_property_definitions keyword to update its definition.' % key)
+            padding_shapes[key] = self.property_definitions[key][0]
+            padding_values[key] = self.property_definitions[key][1]
+        
         if num_shuffle == -1:
             num_shuffle = self.num_configs
         
@@ -54,20 +74,6 @@ class DataSet(object):
             self._dataset = self._dataset.repeat() # Repeat indefinitely
          
         self._dataset = self._dataset.map(self.parser, num_parallel_calls = num_parallel_calls)
-        
-        padding_values = {'pairs' : -1, 'numbers': -1, 'rvec' : self.zero}
-        padding_shapes = {'pairs' : [None, None, 4], 'numbers' : [None], 'rvec' : [3, 3]}
-        for key in self.list_of_properties:
-            if key in ['numbers', 'rvec']:
-                continue
-            padding_values[key] = self.zero
-            if key in ['vtens']:
-                padding_shapes[key] = [3, 3]
-            elif key in ['positions', 'forces']:
-                padding_shapes[key] = [None, 3]
-            else:
-                padding_shapes[key] = [1]
-        
         self._dataset = self._dataset.padded_batch(self.batch_size, padded_shapes = padding_shapes, padding_values = padding_values)      
         self._dataset = self._dataset.prefetch(self.batch_size)
         
@@ -83,24 +89,16 @@ class DataSet(object):
         
         output_dict = {}
         for key in self.list_of_properties:
-            if key == 'numbers':
-                parsed_property = tf.io.decode_raw(parsed_features[key], tf.int32)
-            else:
-                parsed_property = tf.io.decode_raw(parsed_features[key], self.float_type)
-            output_dict[key] = parsed_property
+            output_dict[key] = tf.io.decode_raw(parsed_features[key], self.property_definitions[key][2])
             
         if not 'rvec' in self.list_of_properties:
             output_dict['rvec'] = 100. * tf.eye(3, dtype=self.float_type)
                 
-        # Do some specific preprocessing for certain properties
+        # Replace every None with the number of atoms
         N = tf.shape(output_dict['numbers'])[0]
         for key in self.list_of_properties:
-            if key in ['rvec', 'vtens']:
-                output_dict[key] = tf.reshape(output_dict[key], [3, 3])
-            elif key in ['positions', 'forces']:
-                output_dict[key] = tf.reshape(output_dict[key], [N, 3])
-            else:
-                output_dict[key] = tf.reshape(output_dict[key], [1])
+            new_shape = [N if dim is None else dim for dim in self.property_definitions[key][0]]
+            output_dict[key] = tf.reshape(output_dict[key], new_shape)
         
         if self.float_type == tf.float64:
             pairs = cell_list_op.cell_list(tf.cast(output_dict['positions'], dtype = tf.float32), tf.cast(output_dict['rvec'], dtype = tf.float32), np.float32(self.cutoff))
