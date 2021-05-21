@@ -44,7 +44,7 @@ class Model(tf.Module):
             
             
     @classmethod
-    def from_restore_file(cls, restore_file, generator = False, float_type = 32, reference = None):
+    def from_restore_file(cls, restore_file, float_type = 32, reference = None):
         data = pickle.load(open(restore_file + '.pickle', 'rb'))
         data['restore_file'] = restore_file
         data['float_type'] = float_type
