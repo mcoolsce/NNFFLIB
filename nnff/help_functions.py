@@ -224,7 +224,7 @@ class ScreenLog(object):
         print(self.header)
         print('-' * len(self.header))
     
-    def print_losses(self, losses, epoch = 0, average_training_loss = 0, total_time = 0, time_passed = 0):
+    def print_losses(self, losses, epoch = 0, average_training_loss = 0, time_passed = 0, total_time = 0):
         values = [epoch, average_training_loss] + list(losses) + [time_passed, total_time]
         print((len(self.blank.format(*values)) + 20) * ' ', end = '\r')
         print(self.blank.format(*values))  
