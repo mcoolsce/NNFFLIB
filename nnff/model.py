@@ -24,7 +24,7 @@ def single_pass_hessian(rvec, pairs, positions, numbers, model):
    
 
 class Model(tf.Module):
-    def __init__(self, cutoff, restore_file = None, float_type = 32, do_ewald = False, reference = -335.657990):
+    def __init__(self, cutoff, restore_file = None, float_type = 32, do_ewald = False, reference = 0):
         super(Model, self).__init__()
          
         self.cutoff = cutoff
