@@ -2,7 +2,6 @@ import tensorflow as tf
 import numpy as np
 from molmod.units import angstrom, electronvolt
 from scipy.optimize import minimize
-from .ewald import real_space_part, self_correction_part, reciprocal_part
 import pickle
 
 import os
@@ -168,22 +167,8 @@ class Model(tf.Module):
         dists = tf.sqrt(tf.reduce_sum(tf.square(dcarts), [-1]) + 1e-20)
 
         return dcarts, dists
-
-        
-    def ewald_summation(self, charges, dists, positions, rvecs, numbers, mask_library, gather_neighbor):
-        neighbor_mask, neighbor_mask_int, elements_mask, radial_mask = mask_library
-        
-        ''' Gathering the charges '''
-        neighbor_charges = tf.gather_nd(charges, gather_neighbor) * neighbor_mask_int # [batches, N, J]
-        
-        ''' The Ewald summation '''
-        real_space_energy = real_space_part(self.alpha, charges, neighbor_charges, dists, self.feature_cutoff, neighbor_mask, elements_mask, tf.reshape(radial_mask, [self.batches, self.N, self.J]), float_type = self.float_type)
-        self_correction = self_correction_part(self.alpha, charges, elements_mask)
-        reciprocal_energy = reciprocal_part(self.alpha, self.gcut, charges, all_positions, rvecs, elements_mask, float_type = self.float_type)
-
-        return real_space_energy - self_correction + reciprocal_energy
-        
-        
+     
+      
     def save(self, output_file):
         raise NotImplementedError
         
@@ -214,19 +199,6 @@ class Model(tf.Module):
             calculated_properties[key] = tf_calculated_properties[key].numpy()[0]
 
         return calculated_properties
-        
-        
-    def compute_hessian(self, positions, numbers, rvec):
-        ''' Returns the energy and forces'''
-        
-        N = np.shape(positions)[0]
-        
-        tf_positions, tf_numbers, tf_pairs, tf_rvec = self.preprocess(positions, numbers, rvec)        
-        hessian = single_pass_hessian(tf_rvec, tf_pairs, tf_positions, tf_numbers, self)
-    
-        hessian = hessian.numpy().reshape([N * 3, N * 3])
-
-        return hessian
         
    
     def internal_compute(self, dcarts, dists, numbers, masks, gather_neighbor):
