@@ -19,16 +19,27 @@ def bias_variable(shape, name, initial_value = 0.0, trainable = True):
     return tf.Variable(initial, name = name, trainable = trainable)
     
 
-def make_comment(energy, rvecs = None, forces = None, vtens = None):
+def convert_to_str(value):
+    if type(value) in [np.ndarray, list]:
+        if type(value) == np.ndarray:
+            value = value.flatten()
+        return '"' + ' '.join([str(num) for num in value]) + '"'
+    else:
+        return str(value)
+    
+
+def make_comment(include_forces = False, energy = None, rvec = None, **kwargs):
     comment = 'Properties=species:S:1:pos:R:3:Z:I:1'
-    if not forces is None:
-        comment += ':force:R:3'     
-    if rvecs is not None:
-        comment += ' Lattice="%f %f %f %f %f %f %f %f %f"' % tuple(rvecs.flatten())
-    if vtens is not None:
-        comment += ' vtens="%f %f %f %f %f %f %f %f %f"' % tuple(vtens.flatten())
-    comment += ' energy=' + str(energy)
-    return comment
+    if include_forces:
+        comment += ':force:R:3'  
+    comment += ' '
+    kwargs['energy'] = energy
+    kwargs['Lattice'] = rvec.flatten()
+    for key in kwargs.keys():
+        if kwargs[key] is None:
+            continue
+        comment += '%s=%s ' % (key, convert_to_str(kwargs[key]))
+    return comment[:-1]
     
 
 class XYZLogger(object):
@@ -37,21 +48,25 @@ class XYZLogger(object):
         file = open(self.filename, 'w')
         file.close()
         
-    def write(self, energy, rvec, numbers, positions, forces = None, vtens = None):
+    def write(self, numbers, positions, energy = None, rvec = None, forces = None, **kwargs):
         self.file = open(self.filename, 'a')
         
         N = np.shape(positions)[0]
-
         self.file.write('%d\n' % N)
-        self.file.write(make_comment(energy, rvec, forces = forces, vtens = vtens) + '\n')
         
-        for atom in range(N):
-            symbol = periodic[numbers[atom]].symbol
+        if not forces is None:
+            include_forces = True
+        else:
+            include_forces = False
+            
+        self.file.write(make_comment(include_forces = include_forces, energy = energy, rvec = rvec, **kwargs) + '\n')
+        for i in range(N):
+            symbol = periodic[numbers[i]].symbol
             if forces is None:
-                newline = '%s\t%s\t%s\t%s\t%d' % (symbol, str(positions[atom, 0]), str(positions[atom, 1]), str(positions[atom, 2]), numbers[atom])
+                newline = '%s\t%s\t%s\t%s\t%d' % (symbol, str(positions[i, 0]), str(positions[i, 1]), str(positions[i, 2]), numbers[i])
             else:
-                fx, fy, fz = tuple(forces[atom])
-                newline = '%s\t%s\t%s\t%s\t%d\t%s\t%s\t%s' % (symbol, str(positions[atom, 0]), str(positions[atom, 1]), str(positions[atom, 2]), numbers[atom], str(fx), str(fy), str(fz))
+                fx, fy, fz = tuple(forces[i])
+                newline = '%s\t%s\t%s\t%s\t%d\t%s\t%s\t%s' % (symbol, str(positions[i, 0]), str(positions[i, 1]), str(positions[i, 2]), numbers[i], str(fx), str(fy), str(fz))
             self.file.write(newline + '\n')
         self.file.close()
 
