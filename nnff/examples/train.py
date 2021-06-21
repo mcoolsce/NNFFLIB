@@ -10,7 +10,6 @@ from nnff.datasets import DataSet, TFRWriter
 from nnff.losses import MSE, MAE
 from nnff.hooks import SaveHook
 from glob import glob
-import os
 import tensorflow as tf
 
 if __name__ == '__main__:

@@ -3,12 +3,8 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 import numpy as np
 from nnff.help_functions import load_xyz, XYZLogger
-from matplotlib.colors import LogNorm
 from glob import glob
 from nnff.schnet import SchNet
-import h5py as h5
-from molmod.units import angstrom
-import pickle
 import time
 
 
