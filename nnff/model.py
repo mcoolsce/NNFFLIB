@@ -76,6 +76,14 @@ class Model(tf.Module):
     
     @tf.function(autograph = False, experimental_relax_shapes = True)
     def compute_properties(self, inputs, list_of_properties):
+        return self._compute_properties(inputs, list_of_properties)
+        
+    @tf.function(autograph = False, experimental_relax_shapes = True, experimental_compile = True)
+    def xla_compute_properties(self, inputs, list_of_properties):
+        return self._compute_properties(inputs, list_of_properties)
+    
+    
+    def _compute_properties(self, inputs, list_of_properties):
         rvec = inputs['rvec']
         input_positions = inputs['positions']
         numbers = inputs['numbers']
@@ -188,11 +196,14 @@ class Model(tf.Module):
         return inputs
         
         
-    def compute(self, positions, numbers, rvec = 100 * np.eye(3), list_of_properties = ['energy', 'forces']):
+    def compute(self, positions, numbers, rvec = 100 * np.eye(3), list_of_properties = ['energy', 'forces'], xla = False):
         ''' Returns the energy and forces'''
         inputs = self.preprocess(positions, numbers, rvec)
-              
-        tf_calculated_properties = self.compute_properties(inputs, list_of_properties)
+        
+        if xla:
+            tf_calculated_properties = self.xla_compute_properties(inputs, list_of_properties)
+        else:
+            tf_calculated_properties = self.compute_properties(inputs, list_of_properties)
         
         calculated_properties = {}
         for key in tf_calculated_properties.keys():
