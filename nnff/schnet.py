@@ -6,6 +6,12 @@ import pickle
 from molmod.units import angstrom
 
 
+def weight_variable_xavier(shape, name, trainable = True):
+    bound = np.sqrt(6. / np.sum(shape))
+    initial = tf.random.uniform(shape, minval = -bound, maxval = bound)
+    return tf.Variable(initial, name = name, trainable = trainable)
+
+
 def activation(tensor):
     return tf.math.softplus(tensor) - np.log(2.0)
     
@@ -25,13 +31,13 @@ class InteractionBlock(tf.Module):
         self.num_features = num_features
         self.num_filters = num_filters
         
-        self.int_weights = weight_variable([self.num_features, self.num_filters], 'int_weights_%d' % layer_index, stddev = 1. / np.sqrt(self.num_features))
+        self.int_weights = weight_variable_xavier([self.num_features, self.num_filters], 'int_weights_%d' % layer_index)
         self.int_bias = bias_variable([1, 1, self.num_filters], 'int_bias_%d' % layer_index)
         
-        self.int_weights2 = weight_variable([self.num_filters, self.num_filters], 'int_weights2_%d' % layer_index, stddev = 1. / np.sqrt(self.num_filters))
+        self.int_weights2 = weight_variable_xavier([self.num_filters, self.num_filters], 'int_weights2_%d' % layer_index)
         self.int_bias2 = bias_variable([1, 1, self.num_filters], 'int_bias2_%d' % layer_index)
         
-        self.int_weights3 = weight_variable([self.num_filters, self.num_features], 'int_weights3_%d' % layer_index, stddev = 1. / np.sqrt(self.num_filters))
+        self.int_weights3 = weight_variable_xavier([self.num_filters, self.num_features], 'int_weights3_%d' % layer_index)
         self.int_bias3 = bias_variable([1, 1, self.num_features], 'int_bias3_%d' % layer_index)
         
         self.filter_block = filter_block
@@ -80,10 +86,10 @@ class FilterBlock(tf.Module):
         self.num_filters = num_filters
         self.float_type = float_type
         
-        self.filter_weights1 = weight_variable([self.n_max, self.num_filters], 'filter_weights_1_layer_%d' % layer_index, stddev = 1. / np.sqrt(self.n_max))
+        self.filter_weights1 = weight_variable_xavier([self.n_max, self.num_filters], 'filter_weights_1_layer_%d' % layer_index)
         self.filter_bias1 = bias_variable([1, 1, 1, self.num_filters], 'filter_bias_1_layer_%d' % layer_index)
         
-        self.filter_weights2 = weight_variable([self.num_filters, self.num_filters], 'filter_weights_2_layer_%d' % layer_index, stddev = 1. / np.sqrt(self.num_filters))
+        self.filter_weights2 = weight_variable_xavier([self.num_filters, self.num_filters], 'filter_weights_2_layer_%d' % layer_index)
         self.filter_bias2 = bias_variable([1, 1, 1, self.num_filters], 'filter_bias_2_layer_%d' % layer_index)
               
     def __call__(self, radial_features):
@@ -102,7 +108,7 @@ class FilterBlock(tf.Module):
             filter_bias2 = self.filter_bias2
             
         dense1 = activation(tf.tensordot(radial_features, filter_weights1, [[3], [0]]) + filter_bias1)   
-        return (activation(tf.tensordot(dense1, filter_weights2, [[3], [0]]) + filter_bias2))
+        return activation(tf.tensordot(dense1, filter_weights2, [[3], [0]]) + filter_bias2))
         
         
 class OutputLayer(tf.Module):
@@ -117,7 +123,7 @@ class OutputLayer(tf.Module):
         self.output_biases = []
         
         for i, layer_size in enumerate(self.layer_sizes):    
-            self.output_weights.append(weight_variable([previous_size, layer_size], prefix_name + '_weights_layer_%d' % i, stddev = 1. / np.sqrt(previous_size)))
+            self.output_weights.append(weight_variable_xavier([previous_size, layer_size], prefix_name + '_weights_layer_%d' % i))
             self.output_biases.append(bias_variable([1, 1, layer_size], prefix_name + '_bias_layer_%d' % i))
             
             previous_size = layer_size
