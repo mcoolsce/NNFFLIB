@@ -1,6 +1,6 @@
 import tensorflow as tf
 import numpy as np
-from nnff.model import Model
+from .model import Model
 import pickle
 
 
