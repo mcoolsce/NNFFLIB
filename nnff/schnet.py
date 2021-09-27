@@ -107,8 +107,8 @@ class FilterBlock(tf.Module):
             filter_weights2 = self.filter_weights2
             filter_bias2 = self.filter_bias2
             
-        dense1 = activation(tf.tensordot(radial_features, filter_weights1, [[3], [0]]) + filter_bias1)   
-        return activation(tf.tensordot(dense1, filter_weights2, [[3], [0]]) + filter_bias2))
+        dense1 = activation(tf.tensordot(radial_features, filter_weights1, [[3], [0]]) + filter_bias1)
+        return activation(tf.tensordot(dense1, filter_weights2, [[3], [0]]) + filter_bias2)
         
         
 class OutputLayer(tf.Module):
