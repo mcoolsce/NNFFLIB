@@ -40,8 +40,8 @@ class DataSet(object):
                                      'forces' : ([None, 3], self.zero, self.float_type)}
         self.property_definitions.update(additional_property_definitions)
         
-        padding_shapes = {'pairs': [None, None, 4]}
-        padding_values = {'pairs': -1}
+        padding_shapes = {'pairs': [None, None, 4], 'rvec' : [3, 3]}
+        padding_values = {'pairs': -1, 'rvec' : self.zero}
         for key in self.list_of_properties:
             if not key in self.property_definitions.keys():
                 raise RuntimeError('The property definition of the key "%s" is not known. Use the additional_property_definitions keyword to update its definition.' % key)
@@ -126,7 +126,7 @@ def convert_np_value(value, float_converter):
  
 class TFRWriter(object):
     def __init__(self, filename, list_of_properties = ['positions', 'numbers', 'energy', 'rvec', 'forces'], float_type = 32,
-                 verbose=True):
+                 verbose=True, reference = 0.):
         ''' Possible properties:
             positions ('pos' in xyz)
             numbers ('Z' in xyz)
@@ -148,12 +148,16 @@ class TFRWriter(object):
         self.num_atoms = 0
         self.verbose = verbose
         self.stats = []
+        self.reference = reference
         
         if self.verbose:
             print('Using float%d' % float_type)
             print('Storing the following properties: ' + str(self.list_of_properties))
+            print('Reference energy: ' + str(self.reference))
         
     def write(self, **kwargs):
+        kwargs['energy'] -= self.reference
+    
         feature = {}
         to_store = self.list_of_properties.copy()
         for key, value in kwargs.items():
