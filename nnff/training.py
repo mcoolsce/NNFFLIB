@@ -64,7 +64,7 @@ class Trainer(object):
             
         def single_train_step(**data):
             with tf.GradientTape() as parameter_tape:
-                output = model.compute_properties(data, list_of_properties = self.list_of_properties_training + ['masks'])
+                output = model._compute_properties(data, list_of_properties = self.list_of_properties_training + ['masks'])
                 per_gpu_losses = compute_loss(self.losses, output, data)
                 
                 total_loss = 0.
@@ -80,7 +80,7 @@ class Trainer(object):
             
             
         def single_validation_step(**data):
-            output = model.compute_properties(data, list_of_properties = self.list_of_properties_validation + ['masks'])
+            output = model._compute_properties(data, list_of_properties = self.list_of_properties_validation + ['masks'])
             per_gpu_losses = compute_loss(self.validation_losses, output, data)
             return per_gpu_losses
             
