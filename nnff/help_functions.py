@@ -97,8 +97,11 @@ def parse_comment(comment):
     parsed_comment = {}
     splits = shlex.split(comment)
     for split in splits:
-        keyword, value = split.split('=')     
-        parsed_comment[keyword] = convert(value)      
+        if '=' in split:
+            keyword, value = split.split('=')     
+            parsed_comment[keyword] = convert(value)
+        else:
+            parsed_comment[split] = True  
     return parsed_comment
 
 
