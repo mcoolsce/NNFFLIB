@@ -1,6 +1,6 @@
 import tensorflow as tf
 import numpy as np
-from molmod.units import angstrom, electronvolt
+from molmod.units import angstrom, electronvolt, pascal
 from scipy.optimize import minimize
 import pickle
 
@@ -120,7 +120,7 @@ class Model(tf.Module):
             model_gradient = force_tape.gradient(energy, positions)
             calculated_properties['forces'] = -model_gradient   # These are not masked yet!
         
-        if 'vtens' in list_of_properties:
+        if 'vtens' in list_of_properties or 'stress' in list_of_properties:
             de_dc = force_tape.gradient(energy, rvec)
             vtens = tf.einsum('ijk,ijl->ikl', rvec, de_dc)
             calculated_properties['vtens'] = vtens
@@ -209,6 +209,9 @@ class Model(tf.Module):
         calculated_properties = {}
         for key in tf_calculated_properties.keys():
             calculated_properties[key] = tf_calculated_properties[key].numpy()[0]
+        
+        if 'stress' in list_of_properties:   
+            calculated_properties['stress'] = - calculated_properties['vtens'] / np.linalg.det(rvec) * (electronvolt / angstrom**3) / (1e+09 * pascal) # in GPa
 
         return calculated_properties
         
