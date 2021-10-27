@@ -134,8 +134,53 @@ class Model(tf.Module):
 
         return calculated_properties
         
+        
+    @tf.function(autograph = False, experimental_relax_shapes = True)  
+    def _compute_hessian(self, inputs, include_rvec = True):
+        input_rvec = inputs['rvec']
+        input_positions_tmp = inputs['positions']
+        input_numbers = inputs['numbers']
+        input_pairs = inputs['pairs']
+        
+        # Collecting all the necessary variables
+        self.batches = tf.shape(input_pairs)[0]
+        self.N = tf.shape(input_pairs)[1]
+        if include_rvec:
+            gvecs = tf.linalg.inv(input_rvec)
+            fractional = tf.einsum('ijk,ikl->ijl', input_positions_tmp, gvecs)
+            variables = [tf.reshape(fractional, [self.batches, -1]), tf.reshape(input_rvec, [self.batches, 9])]
+        else:
+            variables = [tf.reshape(input_positions_tmp, [self.batches, -1])]
+        
+        all_coords = tf.concat(variables, axis=1)
+        F = tf.shape(all_coords)[1] # NUMBER OF DIMENSIONS OF THE HESSIAN
+        all_coords = tf.stop_gradient(all_coords)
+        
+        # Extracting the variables
+        if include_rvec:
+            rvec = tf.reshape(all_coords[:, self.N*3:self.N*3+9], [self.batches, 3, 3]) 
+            fractional = tf.reshape(all_coords[:, :self.N*3], [self.batches, -1, 3])
+            positions = tf.einsum('ijk,ikl->ijl', fractional, rvec)
+        else:
+            positions = tf.reshape(all_coords[:, :self.N*3], [self.batches, -1, 3])
+            rvec = tf.expand_dims(tf.eye(3, dtype=self.float_type), [0]) * 100.
+        
+        # The shortrange contributions   
+        masks = self.compute_masks(input_numbers, input_pairs)
+        gather_center, gather_neighbor = self.make_gather_list(input_pairs, masks['neighbor_mask_int'])
+        dcarts, dists = self.compute_distances(positions, input_numbers, rvec, input_pairs, masks['neighbor_mask_int'],
+                                               gather_center, gather_neighbor)
+                                                               
+        energy, atomic_properties = self.internal_compute(dcarts, dists, input_numbers, masks, gather_neighbor)
+        
+        # No need to include reference energies here 
+        hessian = tf.hessians(energy, all_coords)[0]
+        hessian = tf.reshape(hessian, [F, F])
+        return hessian
+        
     
     def make_gather_list(self, pairs, neighbor_mask_int):
+        self.J = tf.shape(pairs)[2]
         batch_indices = tf.tile(tf.reshape(tf.range(self.batches), [-1, 1, 1, 1]), [1, self.N, self.J, 1])
         index_center = tf.tile(tf.reshape(tf.range(self.N), [1, -1, 1, 1]), [self.batches, 1, self.J, 1])
         
@@ -214,6 +259,13 @@ class Model(tf.Module):
             calculated_properties['stress'] = - calculated_properties['vtens'] / np.linalg.det(rvec) * (electronvolt / angstrom**3) / (1e+09 * pascal) # in GPa
 
         return calculated_properties
+        
+    
+    def compute_hessian(self, positions, numbers, rvec = 100 * np.eye(3), include_rvec = True):
+        ''' Returns the energy and forces'''
+        inputs = self.preprocess(positions, numbers, rvec)
+        tf_hessian = self._compute_hessian(inputs, include_rvec = include_rvec)
+        return tf_hessian.numpy()
         
    
     def internal_compute(self, dcarts, dists, numbers, masks, gather_neighbor):
