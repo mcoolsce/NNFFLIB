@@ -7,21 +7,6 @@ import pickle
 import os
 cell_list_op = tf.load_op_library(os.path.dirname(__file__) + '/cell_list_op.so')
 
-    
-@tf.function(autograph = False, experimental_relax_shapes = True)
-def single_pass_hessian(rvec, pairs, positions, numbers, model):
-    dcarts, dists, mask_library, gather_neighbor = model.compute_distances(positions, numbers, rvec, pairs)
-    mask_library = model.compute_masks(numbers, dists, model.cutoff, model.cutoff_transition_width, mask_library)
-        
-    energy, _ = model.internal_compute(dists, dcarts, numbers, mask_library, gather_neighbor)
-
-    hessian = tf.hessians(energy, positions)[0]
-    
-    # Filtering out the position gradients
-    #position_gradients = model_gradient * tf.expand_dims(mask_library[2], [-1])
-
-    return hessian
-   
 
 class Model(tf.Module):
     def __init__(self, cutoff, restore_file = None, float_type = 32, do_ewald = False, reference = 0):
