@@ -71,7 +71,7 @@ class Model(tf.Module):
     
     def _compute_properties(self, inputs, list_of_properties):
         rvec = inputs['rvec']
-        input_positions = inputs['positions']
+        positions = inputs['positions']
         numbers = inputs['numbers']
         pairs = inputs['pairs']
         
@@ -79,13 +79,14 @@ class Model(tf.Module):
         self.N = tf.shape(pairs)[1]
         self.J = tf.shape(pairs)[2]
         
-        gvecs = tf.linalg.inv(rvec)
-        fractional = tf.einsum('ijk,ikl->ijl', input_positions, gvecs)
+        strain = tf.zeros([self.batches, 3, 3], dtype = self.float_type)
         
         with tf.GradientTape(persistent = True) as force_tape:
-            force_tape.watch(rvec)
-            positions = tf.einsum('ijk,ikl->ijl', fractional, rvec)
+            force_tape.watch(strain)
             force_tape.watch(positions)
+            
+            positions += tf.linalg.matmul(positions, strain)
+            rvec += tf.linalg.matmul(rvec, strain)
             
             masks = self.compute_masks(numbers, pairs)
             gather_center, gather_neighbor = self.make_gather_list(pairs, masks['neighbor_mask_int'])
@@ -106,8 +107,7 @@ class Model(tf.Module):
             calculated_properties['forces'] = -model_gradient   # These are not masked yet!
         
         if 'vtens' in list_of_properties or 'stress' in list_of_properties:
-            de_dc = force_tape.gradient(energy, rvec)
-            vtens = tf.einsum('ijk,ijl->ikl', rvec, de_dc)
+            vtens = force_tape.gradient(energy, strain)
             calculated_properties['vtens'] = vtens
             
         if 'masks' in list_of_properties:
