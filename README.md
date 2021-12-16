@@ -3,6 +3,13 @@ Neural Network Force Field
 
 
 # Installation instructions
+**Requirements:**
+
+ - Tensorflow 2.7 or newer
+ - [yaff](https://github.com/molmod/yaff)
+ - [molmod](https://github.com/molmod/molmod)
+ - h5py
+
 **Before installing the package**, execute the following bash script
 
     bash compile_op.sh
