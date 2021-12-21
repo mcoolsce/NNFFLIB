@@ -147,7 +147,7 @@ class OutputLayer(tf.Module):
 
 class SchNet(Model):
     def __init__(self, cutoff = 5., n_max = 25, num_features = 64, start = 0.0, num_layers = 3, end = None, num_filters = -1, do_ewald = False,
-                 restore_file = None, float_type = 32, shared_W_interactions = True, reference = 0):
+                 restore_file = None, float_type = 32, shared_W_interactions = True, reference = 0, trainable_atom_weights = False):
         Model.__init__(self, cutoff, restore_file = restore_file, float_type = float_type, do_ewald = do_ewald, reference = reference) 
         if end is None:
             self.end = cutoff
@@ -170,6 +170,9 @@ class SchNet(Model):
         self.offsets = tf.cast(tf.linspace(self.start, self.end, self.n_max), self.float_type)
         self.widths = self.offsets[1] - self.offsets[0]
         self.offsets = tf.reshape(self.offsets, [1, 1, 1, -1])
+        
+        self.stddevs = tf.Variable(tf.ones([100, 1], dtype=self.float_type), name = 'stddevs', trainable = trainable_atom_weights)
+        self.means = tf.Variable(tf.zeros([100, 1], dtype=self.float_type), name = 'means', trainable = trainable_atom_weights)
         
         if self.shared_W_interactions:
             fixed_W = FilterBlock(0, self.n_max, self.num_filters, self.float_type)
@@ -210,8 +213,11 @@ class SchNet(Model):
         ''' The interaction layers '''
         for i in range(self.num_layers):
             atom_features += self.interaction_blocks[i](atom_features, radial_features, masks['elements_mask'], masks['neighbor_mask'], smooth_cutoff_mask, gather_neighbor)
+        
+        stddevs = tf.nn.embedding_lookup(self.stddevs, numbers * tf.cast(numbers > 0, tf.int32)) * tf.expand_dims(masks['elements_mask'], [-1])
+        means = tf.nn.embedding_lookup(self.means, numbers * tf.cast(numbers > 0, tf.int32)) * tf.expand_dims(masks['elements_mask'], [-1])
 
-        atomic_energies = tf.reshape(self.output_layer(atom_features), [self.batches, self.N])
+        atomic_energies = tf.reshape(self.output_layer(atom_features), [self.batches, self.N]) * tf.reshape(stddevs, [self.batches, self.N]) + tf.reshape(means, [self.batches, self.N])
         
         ''' The final energy '''
         energy = tf.reduce_sum(atomic_energies * masks['elements_mask'], [-1])
