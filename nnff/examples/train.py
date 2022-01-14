@@ -33,7 +33,7 @@ if __name__ == '__main__:
         validation_data = DataSet(['validation.tfr'], num_configs = 3997, cutoff = 5.0, batch_size = 64, float_type = 32, num_parallel_calls = 8, strategy = strategy, list_of_properties = list_of_properties, test = True)
         
         # Initialize a new model ... 
-        model = SchNet(cutoff = 5., n_max = 32, num_layers = 4, start = 0.0, end = 5.0, num_filters = 64, num_features = 512, shared_W_interactions = False, float_type = 32, cutoff_transition_width = 1.0, reference = 0.)     
+        model = SchNet(cutoff = 5., n_max = 32, num_layers = 4, start = 0.0, end = 5.0, num_filters = 64, num_features = 512, shared_W_interactions = False, float_type = 32, reference = 0.)     
         
         # ... or resume from an existing one.  
         #model = SchNet.from_restore_file('model_dir/model_name', reference = 0.)

@@ -31,12 +31,16 @@ class Model(tf.Module):
             
             
     @classmethod
-    def from_restore_file(cls, restore_file, float_type = 32, reference = None):
-        data = pickle.load(open(restore_file + '.pickle', 'rb'))
-        data['restore_file'] = restore_file
-        data['float_type'] = float_type
-        data['reference'] = reference
-        my_model = cls(**data)
+    def from_restore_file(cls, restore_file, **kwargs):
+        ''' kwargs may include:
+                float_type (32 or 64)
+                reference (default is 0.0)
+                longrange_compute (default is None)
+                xla (default is False)
+        '''
+        kwargs.update(pickle.load(open(restore_file + '.pickle', 'rb')))
+        kwargs['restore_file'] = restore_file
+        my_model = cls(**kwargs)
         my_model.load_checkpoint()
         return my_model
             
