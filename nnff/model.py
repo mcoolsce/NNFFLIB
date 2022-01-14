@@ -9,14 +9,11 @@ cell_list_op = tf.load_op_library(os.path.dirname(__file__) + '/cell_list_op.so'
 
 
 class Model(tf.Module):
-    def __init__(self, cutoff, restore_file = None, float_type = 32, do_ewald = False, reference = 0):
+    def __init__(self, cutoff, restore_file = None, float_type = 32, reference = 0, xla = False):
         super(Model, self).__init__()
          
         self.cutoff = cutoff
         self.restore_file = restore_file
-        self.do_ewald = do_ewald
-        assert not self.do_ewald
-        
         self.reference = reference
         
         if float_type == 32:
@@ -25,6 +22,12 @@ class Model(tf.Module):
             self.float_type = tf.float64
         else:
             raise RuntimeError('Float type %d not implemented.' % float_type)
+            
+        if xla:
+            print('Enabling XLA')
+            self.compute_properties = self.xla_compute_properties
+        else:
+            self.compute_properties = self.default_compute_properties
             
             
     @classmethod
@@ -57,10 +60,10 @@ class Model(tf.Module):
             return self.reference
         else:
             return 0.
-        
+            
     
     @tf.function(autograph = False, experimental_relax_shapes = True)
-    def compute_properties(self, inputs, list_of_properties):
+    def default_compute_properties(self, inputs, list_of_properties):
         return self._compute_properties(inputs, list_of_properties)
         
         
@@ -94,10 +97,6 @@ class Model(tf.Module):
                                                    gather_center, gather_neighbor)
                                                                     
             energy, atomic_properties = self.internal_compute(dcarts, dists, numbers, masks, gather_neighbor)
-                 
-            if self.do_ewald:
-                raise NotImplementedError
-                #energy += model.long_range_compute(charges, dists, positions, rvec, numbers, mask_library, gather_neighbor)
         
         reference_energy = self.calculate_reference_energy(numbers) 
         calculated_properties = {'energy' : energy + reference_energy}
@@ -112,10 +111,6 @@ class Model(tf.Module):
             
         if 'masks' in list_of_properties:
             calculated_properties.update(masks)
-            
-            #pair_force = force_tape.gradient(energy, dcarts)
-            #matrix = tf.expand_dims(dcarts, [-1]) * tf.expand_dims(pair_force, [3])
-            #vtens = tf.reduce_sum(matrix * tf.reshape(mask_library[0], [model.batches, model.N, model.J, 1, 1]), [1, 2])
 
         return calculated_properties
         
@@ -227,14 +222,10 @@ class Model(tf.Module):
         return inputs
         
         
-    def compute(self, positions, numbers, rvec = 100 * np.eye(3), list_of_properties = ['energy', 'forces'], xla = False):
+    def compute(self, positions, numbers, rvec = 100 * np.eye(3), list_of_properties = ['energy', 'forces']):
         ''' Returns the energy and forces'''
         inputs = self.preprocess(positions, numbers, rvec)
-        
-        if xla:
-            tf_calculated_properties = self.xla_compute_properties(inputs, list_of_properties)
-        else:
-            tf_calculated_properties = self.compute_properties(inputs, list_of_properties)
+        tf_calculated_properties = self.compute_properties(inputs, list_of_properties)
         
         calculated_properties = {}
         for key in tf_calculated_properties.keys():
