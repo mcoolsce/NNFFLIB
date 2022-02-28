@@ -171,8 +171,8 @@ class SchNet(Model):
         self.widths = self.offsets[1] - self.offsets[0]
         self.offsets = tf.reshape(self.offsets, [1, 1, 1, -1])
         
-        self.stddevs = tf.Variable(tf.ones([100, 1], dtype=self.float_type), name = 'stddevs', trainable = trainable_atom_weights)
-        self.means = tf.Variable(tf.zeros([100, 1], dtype=self.float_type), name = 'means', trainable = trainable_atom_weights)
+        self.stddevs = tf.Variable(tf.ones([100, 1]), name = 'stddevs', trainable = trainable_atom_weights)
+        self.means = tf.Variable(tf.zeros([100, 1]), name = 'means', trainable = trainable_atom_weights)
         
         if self.shared_W_interactions:
             fixed_W = FilterBlock(0, self.n_max, self.num_filters, self.float_type)
@@ -205,17 +205,21 @@ class SchNet(Model):
             
         if self.float_type == tf.float64:
             init_features = tf.cast(self.init_features, dtype = tf.float64)
+            stddevs = tf.cast(self.stddevs, dtype = tf.float64)
+            means = tf.cast(self.means, dtype = tf.float64)
         else:
             init_features = self.init_features
+            stddevs = self.stddevs
+            means = self.means
 
         atom_features = tf.nn.embedding_lookup(init_features, numbers * tf.cast(numbers > 0, tf.int32)) * tf.expand_dims(masks['elements_mask'], [-1])
         
         ''' The interaction layers '''
         for i in range(self.num_layers):
             atom_features += self.interaction_blocks[i](atom_features, radial_features, masks['elements_mask'], masks['neighbor_mask'], smooth_cutoff_mask, gather_neighbor)
-        
-        stddevs = tf.nn.embedding_lookup(self.stddevs, numbers * tf.cast(numbers > 0, tf.int32)) * tf.expand_dims(masks['elements_mask'], [-1])
-        means = tf.nn.embedding_lookup(self.means, numbers * tf.cast(numbers > 0, tf.int32)) * tf.expand_dims(masks['elements_mask'], [-1])
+
+        stddevs = tf.nn.embedding_lookup(stddevs, numbers * tf.cast(numbers > 0, tf.int32)) * tf.expand_dims(masks['elements_mask'], [-1])
+        means = tf.nn.embedding_lookup(means, numbers * tf.cast(numbers > 0, tf.int32)) * tf.expand_dims(masks['elements_mask'], [-1])
 
         atomic_energies = tf.reshape(self.output_layer(atom_features), [self.batches, self.N]) * tf.reshape(stddevs, [self.batches, self.N]) + tf.reshape(means, [self.batches, self.N])
         
