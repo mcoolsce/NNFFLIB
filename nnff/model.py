@@ -9,7 +9,7 @@ cell_list_op = tf.load_op_library(os.path.dirname(__file__) + '/cell_list_op.so'
 
 
 class Model(tf.Module):
-    def __init__(self, cutoff, restore_file = None, float_type = 32, reference = 0, xla = False, per_atom_reference = 0.):
+    def __init__(self, cutoff, restore_file = None, float_type = 32, reference = None, xla = False, per_atom_reference = None):
         super(Model, self).__init__()
          
         self.cutoff = cutoff
