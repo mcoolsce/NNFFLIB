@@ -9,12 +9,13 @@ cell_list_op = tf.load_op_library(os.path.dirname(__file__) + '/cell_list_op.so'
 
 
 class Model(tf.Module):
-    def __init__(self, cutoff, restore_file = None, float_type = 32, reference = 0, xla = False):
+    def __init__(self, cutoff, restore_file = None, float_type = 32, reference = 0, xla = False, per_atom_reference = 0.):
         super(Model, self).__init__()
          
         self.cutoff = cutoff
         self.restore_file = restore_file
         self.reference = reference
+        self.per_atom_reference = per_atom_reference
         
         if float_type == 32:
             self.float_type = tf.float32
@@ -59,11 +60,12 @@ class Model(tf.Module):
             print('Starting from random parameters.')
                 
     
-    def calculate_reference_energy(self, numbers):
+    def calculate_reference_energy(self, numbers, masks):
         if not self.reference is None:
             return self.reference
-        else:
-            return 0.
+        if not self.per_atom_reference is None:
+            return tf.reduce_sum(masks['elements_mask'], [-1]) * self.per_atom_reference
+        return 0.
             
     
     @tf.function(autograph = False, experimental_relax_shapes = True)
@@ -102,7 +104,7 @@ class Model(tf.Module):
                                                                     
             energy, atomic_properties = self.internal_compute(dcarts, dists, numbers, masks, gather_neighbor)
         
-        reference_energy = self.calculate_reference_energy(numbers) 
+        reference_energy = self.calculate_reference_energy(numbers, masks) 
         calculated_properties = {'energy' : energy + reference_energy}
         
         if 'forces' in list_of_properties:

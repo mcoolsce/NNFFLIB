@@ -126,7 +126,7 @@ def convert_np_value(value, float_converter):
  
 class TFRWriter(object):
     def __init__(self, filename, list_of_properties = ['positions', 'numbers', 'energy', 'rvec', 'forces'], float_type = 32,
-                 verbose=True, reference = 0.):
+                 verbose=True, reference = 0., per_atom_reference = 0.):
         ''' Possible properties:
             positions ('pos' in xyz)
             numbers ('Z' in xyz)
@@ -149,6 +149,7 @@ class TFRWriter(object):
         self.verbose = verbose
         self.stats = []
         self.reference = reference
+        self.per_atom_reference = per_atom_reference
         
         if self.verbose:
             print('Using float%d' % float_type)
@@ -157,6 +158,7 @@ class TFRWriter(object):
         
     def write(self, **kwargs):
         kwargs['energy'] -= self.reference
+        kwargs['energy'] -= self.per_atom_reference * len(kwargs['numbers'])
     
         feature = {}
         to_store = self.list_of_properties.copy()
