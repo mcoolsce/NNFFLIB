@@ -1,5 +1,5 @@
-# NNFF
-Neural Network Force Field
+# NNFFLIB
+A Neural Network Force Field python Library
 
 
 # Installation instructions
@@ -21,4 +21,4 @@ to compile the `cell_list_op.so` custom tensorflow op. Next, install the package
 in the cloned directory.
 
 # Examples
-Templates of scripts to train and use the model are located in the `nnff/examples/` directory.
+Templates of scripts to train and use the model are located in the `nnfflib/examples/` directory.
