@@ -3,6 +3,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+nnfflib/cell_list_op.so
 
 # Distribution / packaging
 .Python
