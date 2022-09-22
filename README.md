@@ -5,7 +5,7 @@ A Neural Network Force Field python Library
 # Installation instructions
 **Requirements:**
 
- - Tensorflow 2.7 or newer
+ - Tensorflow 2.10 or newer
  - [yaff](https://github.com/molmod/yaff)
  - [molmod](https://github.com/molmod/molmod)
  - h5py
@@ -21,4 +21,4 @@ to compile the `cell_list_op.so` custom tensorflow op. Next, install the package
 in the cloned directory.
 
 # Examples
-Templates of scripts to train and use the model are located in the `nnfflib/examples/` directory.
+Templates of scripts and jupyter notebooks to train and use the model are located in the `nnfflib/examples/` directory.
